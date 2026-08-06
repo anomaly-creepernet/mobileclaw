@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "dev.cmobile.agent"
+    namespace = "at.creepervm1000.mobileclaw"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "dev.cmobile.agent"
+        applicationId = "at.creepervm1000.mobileclaw"
         minSdk = 26
         targetSdk = 35
         versionCode = 1

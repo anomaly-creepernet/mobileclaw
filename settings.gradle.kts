@@ -20,5 +20,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "CMobileAgent"
+rootProject.name = "MobileClaw"
 include(":app")

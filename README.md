@@ -1,11 +1,11 @@
-# CMobileAgent
+# MobileClaw
 
 An AI agent that lives on an Android phone. It talks to any OpenAI-compatible or
 Anthropic-compatible API, and it has real tools: it can read the device's state, run shell
 commands, reach for elevated privileges through Shizuku, search the web, notify you, and
 schedule itself to wake up.
 
-It also writes its own `IDENTITY.md` and `MEMORY.md` — including its own name. `CMobileAgent`
+It also writes its own `IDENTITY.md` and `MEMORY.md` — including its own name. `MobileClaw`
 is only the default.
 
 ## Build
@@ -97,7 +97,7 @@ points clear of it, or the phone goes on charge. Charging phones never alert.
 
 ## IDENTITY.md and MEMORY.md
 
-Both live in app-private storage (`/data/data/dev.cmobile.agent/files/`) and are injected into
+Both live in app-private storage (`/data/data/at.creepervm1000.mobileclaw/files/`) and are injected into
 every system prompt, so an edit takes effect on the very next turn. Settings has an **Export**
 button that copies both to Downloads so you can read them.
 
@@ -121,3 +121,10 @@ of them.
 - Requests are not streamed — replies appear when complete.
 - `QUERY_ALL_PACKAGES` backs `list_installed_apps`. It's fine for sideloading; Play Store
   distribution would require justifying or dropping it.
+- Cleartext HTTP is permitted, so `web_fetch` can reach a local model server on `127.0.0.1`, a
+  LAN box, or an http-only page. From `targetSdk` 28 on Android blocks those by default, which
+  surfaced as an opaque network failure while the same URL loaded fine in a browser.
+
+## Licence
+
+MIT — see [LICENSE](LICENSE).
