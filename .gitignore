@@ -1,0 +1,15 @@
+# Build output
+build/
+app/build/
+
+# Gradle
+.gradle/
+.kotlin/
+
+# Machine-specific: points at this checkout's SDK install
+local.properties
+
+# IDE
+.idea/
+*.iml
+.DS_Store

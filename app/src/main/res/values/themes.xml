@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Bars are drawn transparent and content extends behind them; Compose applies the real
+         insets, so the layout adapts to 3-button nav vs gestures without hardcoded heights. -->
+    <style name="Theme.CMobileAgent" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+</resources>
