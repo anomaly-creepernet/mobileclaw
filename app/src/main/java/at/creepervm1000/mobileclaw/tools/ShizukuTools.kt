@@ -21,6 +21,7 @@ object ShizukuManager {
     /** Literal tokens the agent is told to expect. */
     const val TOKEN_SUCCESS = "shizuku_conned_success"
     const val TOKEN_UNREACHABLE = "shizuku_notreachable"
+    const val TOKEN_DENIED = "shizuku_denied"
     const val TOKEN_NOT_CONNECTED = "shizuku not connected"
 
     private const val PERMISSION_REQUEST_CODE = 4919
@@ -108,13 +109,16 @@ object ShizukuManager {
      * artifact, so it's reached reflectively rather than vendoring the AIDL.
      */
     fun newProcess(command: String): Process {
-        val method = Shizuku::class.java.getDeclaredMethod(
-            "newProcess",
-            Array<String>::class.java,
-            Array<String>::class.java,
-            String::class.java,
+        val method = runCatching {
+            Shizuku::class.java.getDeclaredMethod(
+                "newProcess",
+                Array<String>::class.java,
+                Array<String>::class.java,
+                String::class.java,
+            ).also { it.isAccessible = true }
+        }.getOrNull() ?: throw IllegalStateException(
+            "Shizuku.newProcess reflection failed — Shizuku version may be incompatible."
         )
-        method.isAccessible = true
         return method.invoke(null, arrayOf("sh", "-c", command), null, null) as Process
     }
 }
@@ -159,10 +163,11 @@ object GetShizukuStatus : AgentTool {
 object ConnectShizuku : AgentTool {
     override val name = "connect_shizuku"
     override val description =
-        "Connect to Shizuku, prompting the user for permission if needed. Returns exactly " +
-            "\"${ShizukuManager.TOKEN_SUCCESS}\" when privileged commands are available, or " +
-            "\"${ShizukuManager.TOKEN_UNREACHABLE}\" if the service isn't running or the user " +
-            "denied the request. Call this once before using run_shizuku_cmd."
+        "Connect to Shizuku, prompting the user for permission if needed. Returns " +
+            "\"${ShizukuManager.TOKEN_SUCCESS}\" when privileged commands are available, " +
+            "\"${ShizukuManager.TOKEN_DENIED}\" if the user denied or dismissed the request, or " +
+            "\"${ShizukuManager.TOKEN_UNREACHABLE}\" if the service isn't running. Call this " +
+            "once before using run_shizuku_cmd."
     override val schema = NO_ARGS
 
     override suspend fun run(args: JsonObject, ctx: ToolContext): String {
@@ -192,7 +197,7 @@ object ConnectShizuku : AgentTool {
                     }
                 } else {
                     ok {
-                        put("result", ShizukuManager.TOKEN_UNREACHABLE)
+                        put("result", ShizukuManager.TOKEN_DENIED)
                         put(
                             "detail",
                             "Permission was denied, dismissed, or timed out. Privileged commands " +
@@ -232,9 +237,10 @@ object RunShizukuCmd : AgentTool {
             val result = ShellRunner.run(process, timeout)
             ShellRunner.formatResult(result, command, "shizuku_${ShizukuManager.privilegeLevel()}")
         } catch (e: Exception) {
-            // A binder death between the state check and the call lands here.
             if (ShizukuManager.state() != ShizukuManager.State.READY) {
                 ShizukuManager.TOKEN_NOT_CONNECTED
+            } else if (e is IllegalStateException && e.message?.contains("reflection failed") == true) {
+                err("Shizuku API incompatible: ${e.message}")
             } else {
                 err("Shizuku command failed: ${e.message}")
             }

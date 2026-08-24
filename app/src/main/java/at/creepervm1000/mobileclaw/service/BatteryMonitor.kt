@@ -2,7 +2,6 @@ package at.creepervm1000.mobileclaw.service
 
 import android.content.Context
 import at.creepervm1000.mobileclaw.agent.AgentEngine
-import at.creepervm1000.mobileclaw.core.Notifier
 import at.creepervm1000.mobileclaw.tools.BatteryReader
 import at.creepervm1000.mobileclaw.tools.BatterySnapshot
 
@@ -22,7 +21,6 @@ class BatteryMonitor(
     private val thresholds = listOf(
         Threshold(15, Severity.NOTICE),
         Threshold(5, Severity.WARNING),
-        Threshold(2, Severity.CRITICAL),
         Threshold(1, Severity.CRITICAL),
         Threshold(0, Severity.CRITICAL),
     ).sortedByDescending { it.percent }
@@ -44,8 +42,6 @@ class BatteryMonitor(
 
         /** How far above a threshold the battery must climb before that alert re-arms. */
         private const val REARM_MARGIN = 3
-
-        private const val CRITICAL_NOTIFICATION_ID = 42
     }
 
     fun currentPercent(): Int = BatteryReader.read(context).percent
@@ -71,14 +67,8 @@ class BatteryMonitor(
         crossed.forEach { fired += it.percent }
 
         if (worst.severity == Severity.CRITICAL) {
-            // Post directly too — a 1% warning must not depend on an API round-trip succeeding.
-            Notifier.notify(
-                context = context,
-                title = "Battery critical — ${battery.percent}%",
-                body = "The phone is about to shut down. Plug it in now.",
-                urgent = true,
-                id = CRITICAL_NOTIFICATION_ID,
-            )
+            // Android already shows its own critical battery notification — no need to duplicate.
+            // The agent still receives the event and can act on it.
         }
 
         return listOfNotNull(plugTransition, describe(battery, worst))
@@ -99,9 +89,6 @@ class BatteryMonitor(
         if (previous == null || previous == battery.charging) return null
         if (!battery.charging) return null
         if (battery.percent > LOW_BATTERY_PERCENT) return null
-
-        // Clear the critical alert: it said "plug it in now", and they have.
-        Notifier.cancel(context, CRITICAL_NOTIFICATION_ID)
 
         return "Phone plugged in at ${battery.percent}% and now charging (plugged=" +
             "${battery.plugged}). This resolves the low-battery situation you were told about; " +

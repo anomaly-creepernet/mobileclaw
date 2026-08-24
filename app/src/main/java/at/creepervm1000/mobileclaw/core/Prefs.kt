@@ -28,6 +28,7 @@ data class AgentSettings(
     val agentName: String = "MobileClaw",
     val serviceEnabled: Boolean = false,
     val startOnBoot: Boolean = false,
+    val useWakeLock: Boolean = false,
 ) {
     fun toLlmConfig() = LlmConfig(
         provider = provider,
@@ -55,6 +56,7 @@ class Prefs(private val context: Context) {
         val AGENT_NAME = stringPreferencesKey("agent_name")
         val SERVICE_ENABLED = booleanPreferencesKey("service_enabled")
         val START_ON_BOOT = booleanPreferencesKey("start_on_boot")
+        val USE_WAKE_LOCK = booleanPreferencesKey("use_wake_lock")
     }
 
     val settings: Flow<AgentSettings> = context.dataStore.data.map { it.toSettings() }
@@ -74,6 +76,7 @@ class Prefs(private val context: Context) {
             agentName = this[Keys.AGENT_NAME] ?: defaults.agentName,
             serviceEnabled = this[Keys.SERVICE_ENABLED] ?: defaults.serviceEnabled,
             startOnBoot = this[Keys.START_ON_BOOT] ?: defaults.startOnBoot,
+            useWakeLock = this[Keys.USE_WAKE_LOCK] ?: defaults.useWakeLock,
         )
     }
 
@@ -90,6 +93,7 @@ class Prefs(private val context: Context) {
             prefs[Keys.AGENT_NAME] = updated.agentName
             prefs[Keys.SERVICE_ENABLED] = updated.serviceEnabled
             prefs[Keys.START_ON_BOOT] = updated.startOnBoot
+            prefs[Keys.USE_WAKE_LOCK] = updated.useWakeLock
         }
     }
 }

@@ -8,6 +8,7 @@ import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import androidx.core.content.ContextCompat
 import at.creepervm1000.mobileclaw.AgentApp
 import at.creepervm1000.mobileclaw.core.CronStore
@@ -35,6 +36,7 @@ class AgentService : Service() {
     private var cronJob: Job? = null
 
     private lateinit var monitor: BatteryMonitor
+    private var wakeLock: PowerManager.WakeLock? = null
 
     private val app get() = applicationContext as AgentApp
 
@@ -96,6 +98,8 @@ class AgentService : Service() {
         }
 
         startForegroundCompat(monitor.currentPercent())
+
+        if (app.prefs.settings.first().useWakeLock) acquireWakeLock()
 
         if (batteryJob == null) batteryJob = scope.launch { batteryLoop() }
         if (cronJob == null) cronJob = scope.launch { cronLoop() }
@@ -185,14 +189,23 @@ class AgentService : Service() {
     }
 
     private fun acquireWakeLock() {
-        // Deliberately absent: a permanently-held PARTIAL_WAKE_LOCK would drain the very battery
-        // this service exists to watch. Timers may therefore be deferred while the device is in
-        // Doze; the ACTION_BATTERY_CHANGED receiver catches up on the next wake. Users who need
-        // strict five-minute accuracy should exempt the app from battery optimisation.
+        if (wakeLock != null) return
+        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "mobileclaw:agent").apply {
+            acquire()
+        }
+    }
+
+    private fun releaseWakeLock() {
+        wakeLock?.let {
+            if (it.isHeld) it.release()
+        }
+        wakeLock = null
     }
 
     override fun onDestroy() {
         runCatching { unregisterReceiver(batteryReceiver) }
+        releaseWakeLock()
         scope.cancel()
         super.onDestroy()
     }

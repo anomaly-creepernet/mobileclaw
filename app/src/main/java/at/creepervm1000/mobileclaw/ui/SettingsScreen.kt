@@ -266,8 +266,18 @@ fun SettingsScreen(
                 },
             )
 
+            SwitchRow(
+                title = "Wake lock",
+                subtitle = "Hold a partial wake lock while the service runs, preventing the CPU " +
+                    "from sleeping. Increases battery use but keeps cron timers accurate in Doze.",
+                checked = settings.useWakeLock,
+                onCheckedChange = { value ->
+                    viewModel.updateSettings { it.copy(useWakeLock = value) }
+                },
+            )
+
             Text(
-                text = "Battery alerts fire at 15%, 5%, and critically at 2%, 1% and 0%. Each level " +
+                text = "Battery alerts fire at 15%, 5%, and critically at 1% and 0%. Each level " +
                     "alerts once per discharge and re-arms after charging.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
