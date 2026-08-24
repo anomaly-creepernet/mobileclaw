@@ -99,7 +99,7 @@ class AgentService : Service() {
 
         startForegroundCompat(monitor.currentPercent())
 
-        if (app.prefs.settings.first().useWakeLock) acquireWakeLock()
+        scope.launch { if (app.prefs.settings.first().useWakeLock) acquireWakeLock() }
 
         if (batteryJob == null) batteryJob = scope.launch { batteryLoop() }
         if (cronJob == null) cronJob = scope.launch { cronLoop() }
