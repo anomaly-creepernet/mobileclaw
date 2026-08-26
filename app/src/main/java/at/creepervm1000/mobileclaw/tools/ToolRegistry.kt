@@ -12,6 +12,13 @@ object ToolRegistry {
         GetSystemStats,
         GetTime,
         ListInstalledApps,
+        // App actions
+        OpenUrl,
+        LaunchApp,
+        OpenAppSettings,
+        // Clipboard
+        SetClipboard,
+        GetClipboard,
         // Connectivity
         GetConnectionMethod,
         IsHotspotRunning,
