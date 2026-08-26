@@ -55,10 +55,18 @@ class OpenAiClient(private val config: LlmConfig) : LlmClient {
             }
         }
 
-        val request = Request.Builder()
+        val builder = Request.Builder()
             .url("${Http.normalizeBase(config.baseUrl)}/chat/completions")
             .addHeader("Authorization", "Bearer ${config.apiKey}")
             .addHeader("Content-Type", "application/json")
+
+        // OpenRouter app attribution
+        if (config.baseUrl.contains("openrouter", ignoreCase = true)) {
+            builder.addHeader("HTTP-Referer", "https://github.com/mobileclaw-agent/mobileclaw")
+            builder.addHeader("X-Title", "MobileClaw")
+        }
+
+        val request = builder
             .post(body.toString().toRequestBody(JSON_MEDIA))
             .build()
 
