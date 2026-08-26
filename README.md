@@ -1,3 +1,5 @@
+[中文文档](README_zh.md)
+
 # MobileClaw
 
 An AI agent that lives on an Android phone. It talks to any OpenAI-compatible or
