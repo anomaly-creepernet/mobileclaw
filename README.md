@@ -42,6 +42,10 @@ base URL at them and set the model name. Then grant notification permission and 
 **Device** — `get_android_version`, `get_build_version`, `get_device_name`, `get_device_model`,
 `get_system_stats`, `get_time`, `list_installed_apps`
 
+**App actions** — `open_url`, `launch_app`, `open_app_settings`
+
+**Clipboard** — `set_clipboard`, `get_clipboard`
+
 **Connectivity** — `get_connection_method` (wlan / mobile_net / ethernet / vpn, metered,
 validated), `is_hotspot_running`
 

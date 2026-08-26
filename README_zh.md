@@ -35,6 +35,10 @@ OpenAI 路径兼容 OpenRouter、Groq、Together、Ollama、LM Studio 和 vLLM�
 
 **设备** — `get_android_version`、`get_build_version`、`get_device_name`、`get_device_model`、`get_system_stats`、`get_time`、`list_installed_apps`
 
+**应用操作** — `open_url`、`launch_app`、`open_app_settings`
+
+**剪贴板** — `set_clipboard`、`get_clipboard`
+
 **网络** — `get_connection_method`（wlan / mobile_net / ethernet / vpn，是否计费，是否验证）、`is_hotspot_running`
 
 **电源** — `get_battery_info`
