@@ -25,11 +25,13 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -45,6 +47,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -66,11 +69,19 @@ fun ChatScreen(
     val status by viewModel.status.collectAsStateSafe()
     val settings by viewModel.settings.collectAsStateSafe()
 
-    var draft by remember { mutableStateOf("") }
+    var draft by rememberSaveable { mutableStateOf("") }
+    var confirmClear by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
 
+    // Only chase the newest message when the user is already reading the tail of the
+    // conversation; a new tool result shouldn't yank someone who scrolled up to re-read.
     LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
+        if (messages.isEmpty()) return@LaunchedEffect
+        val info = listState.layoutInfo
+        val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: -1
+        if (lastVisible >= info.totalItemsCount - 3) {
+            listState.animateScrollToItem(messages.size - 1)
+        }
     }
 
     Scaffold(
@@ -87,7 +98,7 @@ fun ChatScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.clearConversation() }) {
+                    IconButton(onClick = { confirmClear = true }) {
                         Icon(Icons.Default.DeleteSweep, contentDescription = "Clear conversation")
                     }
                     IconButton(onClick = onOpenSettings) {
@@ -156,7 +167,7 @@ fun ChatScreen(
                 ),
         ) {
             if (messages.isEmpty()) {
-                EmptyState(settings.agentName, settings.isConfigured)
+                EmptyState(settings.agentName, settings.isConfigured, onOpenSettings)
             } else {
                 LazyColumn(
                     state = listState,
@@ -175,10 +186,24 @@ fun ChatScreen(
             }
         }
     }
+
+    if (confirmClear) {
+        ConfirmDialog(
+            title = "Clear conversation?",
+            text = "This removes the whole transcript from this device. It does not touch " +
+                "IDENTITY.md or MEMORY.md.",
+            confirmLabel = "Clear",
+            onConfirm = {
+                confirmClear = false
+                viewModel.clearConversation()
+            },
+            onDismiss = { confirmClear = false },
+        )
+    }
 }
 
 @Composable
-private fun EmptyState(agentName: String, configured: Boolean) {
+private fun EmptyState(agentName: String, configured: Boolean, onOpenSettings: () -> Unit) {
     Column(
         modifier = Modifier.fillMaxSize().padding(32.dp),
         verticalArrangement = Arrangement.Center,
@@ -203,6 +228,12 @@ private fun EmptyState(agentName: String, configured: Boolean) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        if (!configured) {
+            Spacer(Modifier.size(20.dp))
+            Button(onClick = onOpenSettings) {
+                Text("Open Settings")
+            }
+        }
     }
 }
 
@@ -229,7 +260,10 @@ private fun UserBubble(text: String) {
                 .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(16.dp, 16.dp, 4.dp, 16.dp))
                 .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
-            Text(text, color = MaterialTheme.colorScheme.onPrimary)
+            // Text isn't selectable unless wrapped; long-press copy is expected in a chat.
+            SelectionContainer {
+                Text(text, color = MaterialTheme.colorScheme.onPrimary)
+            }
         }
     }
 }
@@ -242,7 +276,9 @@ private fun AssistantBubble(text: String) {
                 .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp, 16.dp, 16.dp, 4.dp))
                 .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
-            Text(text, color = MaterialTheme.colorScheme.onSurface)
+            SelectionContainer {
+                Text(text, color = MaterialTheme.colorScheme.onSurface)
+            }
         }
     }
 }
@@ -311,13 +347,15 @@ private fun ToolResultCard(name: String, content: String) {
                 color = MaterialTheme.colorScheme.secondary,
                 fontFamily = FontFamily.Monospace,
             )
-            Text(
-                text = if (expanded) content.take(4000) else preview,
-                style = MaterialTheme.typography.labelSmall,
-                fontFamily = FontFamily.Monospace,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 11.sp,
-            )
+            SelectionContainer {
+                Text(
+                    text = if (expanded) content.take(4000) else preview,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontFamily = FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 11.sp,
+                )
+            }
         }
     }
 }

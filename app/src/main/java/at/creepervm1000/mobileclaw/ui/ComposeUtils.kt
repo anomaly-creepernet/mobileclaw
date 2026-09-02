@@ -9,6 +9,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -77,3 +80,28 @@ fun rememberWriteThrough(stored: String, write: (String) -> Unit): WriteThroughT
 
 /** The current text to display, and the callback to hand to a text field's onValueChange. */
 data class WriteThroughText(val value: String, val onValueChange: (String) -> Unit)
+
+/**
+ * Standard destructive-action confirmation. Destructive taps that cannot be undone — clearing
+ * the transcript, deleting a scheduled task — need an explicit yes before they happen.
+ */
+@Composable
+fun ConfirmDialog(
+    title: String,
+    text: String,
+    confirmLabel: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = { Text(text) },
+        confirmButton = {
+            TextButton(onClick = { onConfirm() }) { Text(confirmLabel) }
+        },
+        dismissButton = {
+            TextButton(onClick = { onDismiss() }) { Text("Cancel") }
+        },
+    )
+}

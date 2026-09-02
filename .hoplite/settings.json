@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "ports": {"preview": 3000, "additional": {}},
+  "scripts": {
+    "setup": {
+      "enabled": true,
+      "command": "set -e\nexport JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64\nexport ANDROID_HOME=/opt/android-sdk\nif ! command -v java >/dev/null 2>&1; then\n  sudo apt-get update -qq\n  sudo apt-get install -y -qq openjdk-17-jdk-headless\nfi\nif [ ! -x \"$ANDROID_HOME/platform-tools/adb\" ]; then\n  mkdir -p \"$ANDROID_HOME/cmdline-tools\"\n  curl -sSL -o /tmp/cmdtools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip\n  rm -rf /tmp/cmdtools \"$ANDROID_HOME/cmdline-tools/latest\"\n  mkdir -p /tmp/cmdtools\n  unzip -q /tmp/cmdtools.zip -d /tmp/cmdtools\n  mv /tmp/cmdtools/cmdline-tools \"$ANDROID_HOME/cmdline-tools/latest\"\n  yes | \"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager\" --sdk_root=\"$ANDROID_HOME\" --licenses >/dev/null 2>&1 || true\n  \"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager\" --sdk_root=\"$ANDROID_HOME\" \"platforms;android-35\" \"build-tools;35.0.0\" \"platform-tools\" >/dev/null\nfi"
+    },
+    "run": {"enabled": true, "command": null},
+    "archive": {"enabled": true, "command": null},
+    "check": {
+      "enabled": true,
+      "command": "export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64\nexport ANDROID_HOME=/opt/android-sdk\n./gradlew :app:assembleDebug"
+    }
+  },
+  "mcpServers": []
+}
