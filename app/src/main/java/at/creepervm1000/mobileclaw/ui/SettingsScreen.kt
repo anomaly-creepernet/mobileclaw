@@ -1,5 +1,7 @@
 package at.creepervm1000.mobileclaw.ui
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -45,6 +46,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,6 +57,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import at.creepervm1000.mobileclaw.core.AgentSettings
+import at.creepervm1000.mobileclaw.core.CronJob
 import at.creepervm1000.mobileclaw.llm.Provider
 import kotlinx.coroutines.launch
 
@@ -69,6 +73,12 @@ fun SettingsScreen(
 
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    var confirmClear by remember { mutableStateOf(false) }
+    var cronToDelete by remember { mutableStateOf<CronJob?>(null) }
+
+    // System back returns to the chat; without this the activity would be finished instead.
+    BackHandler(onBack = onBack)
 
     Scaffold(
         topBar = {
@@ -89,11 +99,13 @@ fun SettingsScreen(
         // bottom one. Leaving the default here would count both twice.
         contentWindowInsets = WindowInsets(0),
     ) { padding ->
+        // Saver so leaving and re-entering Settings doesn't reset the scroll position.
+        val scrollState = rememberSaveable(saver = ScrollState.Saver) { ScrollState(0) }
         Column(
             Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
                 // Applied inside the scroll container so the content scrolls under the nav bar
                 // rather than the whole list being inset from it.
                 .windowInsetsPadding(
@@ -109,26 +121,14 @@ fun SettingsScreen(
                 FilterChip(
                     selected = settings.provider == Provider.OPENAI,
                     onClick = {
-                        viewModel.updateSettings {
-                            it.copy(
-                                provider = Provider.OPENAI,
-                                baseUrl = "https://api.openai.com/v1",
-                                model = "gpt-4o",
-                            )
-                        }
+                        viewModel.updateSettings { it.switchProvider(Provider.OPENAI) }
                     },
                     label = { Text("OpenAI-compatible") },
                 )
                 FilterChip(
                     selected = settings.provider == Provider.ANTHROPIC,
                     onClick = {
-                        viewModel.updateSettings {
-                            it.copy(
-                                provider = Provider.ANTHROPIC,
-                                baseUrl = "https://api.anthropic.com/v1",
-                                model = "claude-opus-4-20250514",
-                            )
-                        }
+                        viewModel.updateSettings { it.switchProvider(Provider.ANTHROPIC) }
                     },
                     label = { Text("Anthropic") },
                 )
@@ -160,7 +160,7 @@ fun SettingsScreen(
 
             // Password fields suppress the long-press text toolbar, so pasting a key that way is
             // unreliable. An explicit reveal toggle and paste button work regardless.
-            var keyVisible by remember { mutableStateOf(false) }
+            var keyVisible by rememberSaveable { mutableStateOf(false) }
             val clipboard = LocalClipboardManager.current
 
             val apiKeyField = rememberWriteThrough(settings.apiKey) { value ->
@@ -370,7 +370,7 @@ fun SettingsScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                            IconButton(onClick = { viewModel.deleteCron(job.id) }) {
+                            IconButton(onClick = { cronToDelete = job }) {
                                 Icon(Icons.Default.Delete, contentDescription = "Delete task")
                             }
                         }
@@ -382,7 +382,7 @@ fun SettingsScreen(
             SectionTitle("Conversation")
 
             Button(
-                onClick = { viewModel.clearConversation() },
+                onClick = { confirmClear = true },
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("Clear conversation history")
@@ -396,6 +396,39 @@ fun SettingsScreen(
 
             Spacer(Modifier.size(24.dp))
         }
+
+        if (confirmClear) {
+            ConfirmDialog(
+                title = "Clear conversation?",
+                text = "This removes the whole transcript from this device. It does not touch " +
+                    "IDENTITY.md or MEMORY.md.",
+                confirmLabel = "Clear",
+                onConfirm = {
+                    confirmClear = false
+                    viewModel.clearConversation()
+                },
+                onDismiss = { confirmClear = false },
+            )
+        }
+
+        cronToDelete?.let { job ->
+            val schedule = if (job.intervalMinutes == 0) {
+                "every tick (~10s)"
+            } else {
+                "every ${job.intervalMinutes} min"
+            }
+            ConfirmDialog(
+                title = "Delete scheduled task?",
+                text = "\"${job.name}\" ($schedule, ${job.runCount} runs so far) will stop " +
+                    "firing. Ask the agent to create a new one if you want it back.",
+                confirmLabel = "Delete",
+                onConfirm = {
+                    cronToDelete = null
+                    viewModel.deleteCron(job.id)
+                },
+                onDismiss = { cronToDelete = null },
+            )
+        }
     }
 }
 
@@ -406,6 +439,29 @@ private fun SectionTitle(text: String) {
         style = MaterialTheme.typography.titleMedium,
         color = MaterialTheme.colorScheme.primary,
     )
+}
+
+/** Default endpoint and model per provider. */
+private val PROVIDER_PRESETS = mapOf(
+    Provider.OPENAI to ("https://api.openai.com/v1" to "gpt-4o"),
+    Provider.ANTHROPIC to ("https://api.anthropic.com/v1" to "claude-opus-4-20250514"),
+)
+
+/**
+ * Provider chips are presets, not a form wipe: the default base URL and model are applied only
+ * when the fields still hold the defaults of the provider being left. A custom Ollama or
+ * OpenRouter endpoint has to survive a chip tap.
+ */
+private fun AgentSettings.switchProvider(target: Provider): AgentSettings {
+    if (provider == target) return this
+    val currentPreset = PROVIDER_PRESETS.getValue(provider)
+    val targetPreset = PROVIDER_PRESETS.getValue(target)
+    val untouched = baseUrl == currentPreset.first && model == currentPreset.second
+    return if (untouched) {
+        copy(provider = target, baseUrl = targetPreset.first, model = targetPreset.second)
+    } else {
+        copy(provider = target)
+    }
 }
 
 @Composable
